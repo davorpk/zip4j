@@ -1,22 +1,21 @@
 package net.lingala.zip4j.headers;
 
-import net.lingala.zip4j.exception.ZipException;
-import net.lingala.zip4j.model.FileHeader;
-import net.lingala.zip4j.model.ZipModel;
-import net.lingala.zip4j.util.InternalZipConstants;
+import static net.lingala.zip4j.util.InternalZipConstants.*;
+import static net.lingala.zip4j.util.Zip4jUtil.*;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import static net.lingala.zip4j.util.InternalZipConstants.ZIP4J_DEFAULT_CHARSET;
-import static net.lingala.zip4j.util.InternalZipConstants.ZIP_STANDARD_CHARSET_NAME;
-import static net.lingala.zip4j.util.Zip4jUtil.isStringNotNullAndNotEmpty;
+import net.lingala.zip4j.exception.ZipException;
+import net.lingala.zip4j.model.FileHeader;
+import net.lingala.zip4j.model.ZipModel;
+import net.lingala.zip4j.util.InternalZipConstants;
 
 public class HeaderUtil {
 
-  public static FileHeader getFileHeader(ZipModel zipModel, String fileName) throws ZipException {
+  public static FileHeader getFileHeader(final ZipModel zipModel, String fileName) throws ZipException {
     FileHeader fileHeader = getFileHeaderWithExactMatch(zipModel, fileName);
 
     if (fileHeader == null) {
@@ -32,7 +31,7 @@ public class HeaderUtil {
     return fileHeader;
   }
 
-  public static String decodeStringWithCharset(byte[] data, boolean isUtf8Encoded, Charset charset) {
+  public static String decodeStringWithCharset(final byte[] data, final boolean isUtf8Encoded, final Charset charset) {
     if (charset != null) {
       return new String(data, charset);
     }
@@ -43,12 +42,12 @@ public class HeaderUtil {
 
     try {
       return new String(data, ZIP_STANDARD_CHARSET_NAME);
-    } catch (UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException e) {
       return new String(data);
     }
   }
 
-  public static byte[] getBytesFromString(String string, Charset charset) {
+  public static byte[] getBytesFromString(final String string, final Charset charset) {
     if (charset == null) {
       return string.getBytes(ZIP4J_DEFAULT_CHARSET);
     }
@@ -56,7 +55,7 @@ public class HeaderUtil {
     return string.getBytes(charset);
   }
 
-  public static long getOffsetStartOfCentralDirectory(ZipModel zipModel) {
+  public static long getOffsetStartOfCentralDirectory(final ZipModel zipModel) {
     if (zipModel.isZip64Format()) {
       return zipModel.getZip64EndOfCentralDirectoryRecord().getOffsetStartCentralDirectoryWRTStartDiskNumber();
     }
@@ -64,9 +63,17 @@ public class HeaderUtil {
     return zipModel.getEndOfCentralDirectoryRecord().getOffsetOfStartOfCentralDirectory();
   }
 
-  public static List<FileHeader> getFileHeadersUnderDirectory(List<FileHeader> allFileHeaders, String fileName) {
-    List<FileHeader> fileHeadersUnderDirectory = new ArrayList<>();
-    for (FileHeader fileHeader : allFileHeaders) {
+  public static long getSizeOfCentralDirectory(final ZipModel zipModel) {
+      if (zipModel.isZip64Format()) {
+        return zipModel.getZip64EndOfCentralDirectoryRecord().getSizeOfCentralDirectory();
+      }
+
+      return zipModel.getEndOfCentralDirectoryRecord().getSizeOfCentralDirectory();
+    }
+
+  public static List<FileHeader> getFileHeadersUnderDirectory(final List<FileHeader> allFileHeaders, final String fileName) {
+    final List<FileHeader> fileHeadersUnderDirectory = new ArrayList<>();
+    for (final FileHeader fileHeader : allFileHeaders) {
       if (fileHeader.getFileName().startsWith(fileName)) {
         fileHeadersUnderDirectory.add(fileHeader);
       }
@@ -74,9 +81,9 @@ public class HeaderUtil {
     return fileHeadersUnderDirectory;
   }
 
-  public static long getTotalUncompressedSizeOfAllFileHeaders(List<FileHeader> fileHeaders) {
+  public static long getTotalUncompressedSizeOfAllFileHeaders(final List<FileHeader> fileHeaders) {
     long totalUncompressedSize = 0;
-    for (FileHeader fileHeader : fileHeaders) {
+    for (final FileHeader fileHeader : fileHeaders) {
       if (fileHeader.getZip64ExtendedInfo() != null &&
           fileHeader.getZip64ExtendedInfo().getUncompressedSize() > 0) {
         totalUncompressedSize += fileHeader.getZip64ExtendedInfo().getUncompressedSize();
@@ -87,7 +94,7 @@ public class HeaderUtil {
     return totalUncompressedSize;
   }
 
-  private static FileHeader getFileHeaderWithExactMatch(ZipModel zipModel, String fileName) throws ZipException {
+  private static FileHeader getFileHeaderWithExactMatch(final ZipModel zipModel, final String fileName) throws ZipException {
     if (zipModel == null) {
       throw new ZipException("zip model is null, cannot determine file header with exact match for fileName: "
           + fileName);
@@ -112,8 +119,8 @@ public class HeaderUtil {
       return null;
     }
 
-    for (FileHeader fileHeader : zipModel.getCentralDirectory().getFileHeaders()) {
-      String fileNameForHdr = fileHeader.getFileName();
+    for (final FileHeader fileHeader : zipModel.getCentralDirectory().getFileHeaders()) {
+      final String fileNameForHdr = fileHeader.getFileName();
       if (!isStringNotNullAndNotEmpty(fileNameForHdr)) {
         continue;
       }
