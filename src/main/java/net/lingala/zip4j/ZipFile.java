@@ -16,42 +16,10 @@
 
 package net.lingala.zip4j;
 
-import net.lingala.zip4j.exception.ZipException;
-import net.lingala.zip4j.headers.HeaderReader;
-import net.lingala.zip4j.headers.HeaderUtil;
-import net.lingala.zip4j.headers.HeaderWriter;
-import net.lingala.zip4j.io.inputstream.NumberedSplitRandomAccessFile;
-import net.lingala.zip4j.io.inputstream.ZipInputStream;
-import net.lingala.zip4j.model.FileHeader;
-import net.lingala.zip4j.model.UnzipParameters;
-import net.lingala.zip4j.model.Zip4jConfig;
-import net.lingala.zip4j.model.ZipModel;
-import net.lingala.zip4j.model.ZipParameters;
-import net.lingala.zip4j.model.enums.RandomAccessFileMode;
-import net.lingala.zip4j.progress.ProgressMonitor;
-import net.lingala.zip4j.tasks.AddFilesToZipTask;
-import net.lingala.zip4j.tasks.AddFilesToZipTask.AddFilesToZipTaskParameters;
-import net.lingala.zip4j.tasks.AddFolderToZipTask;
-import net.lingala.zip4j.tasks.AddFolderToZipTask.AddFolderToZipTaskParameters;
-import net.lingala.zip4j.tasks.AddStreamToZipTask;
-import net.lingala.zip4j.tasks.AddStreamToZipTask.AddStreamToZipTaskParameters;
-import net.lingala.zip4j.tasks.AsyncZipTask;
-import net.lingala.zip4j.tasks.ExtractAllFilesTask;
-import net.lingala.zip4j.tasks.ExtractAllFilesTask.ExtractAllFilesTaskParameters;
-import net.lingala.zip4j.tasks.ExtractFileTask;
-import net.lingala.zip4j.tasks.ExtractFileTask.ExtractFileTaskParameters;
-import net.lingala.zip4j.tasks.MergeSplitZipFileTask;
-import net.lingala.zip4j.tasks.MergeSplitZipFileTask.MergeSplitZipFileTaskParameters;
-import net.lingala.zip4j.tasks.RemoveFilesFromZipTask;
-import net.lingala.zip4j.tasks.RemoveFilesFromZipTask.RemoveFilesFromZipTaskParameters;
-import net.lingala.zip4j.tasks.RenameFilesTask;
-import net.lingala.zip4j.tasks.RenameFilesTask.RenameFilesTaskParameters;
-import net.lingala.zip4j.tasks.SetCommentTask;
-import net.lingala.zip4j.tasks.SetCommentTask.SetCommentTaskTaskParameters;
-import net.lingala.zip4j.util.FileUtils;
-import net.lingala.zip4j.util.InternalZipConstants;
-import net.lingala.zip4j.util.RawIO;
-import net.lingala.zip4j.util.Zip4jUtil;
+import static net.lingala.zip4j.util.FileUtils.*;
+import static net.lingala.zip4j.util.InternalZipConstants.*;
+import static net.lingala.zip4j.util.UnzipUtil.*;
+import static net.lingala.zip4j.util.Zip4jUtil.*;
 
 import java.io.Closeable;
 import java.io.File;
@@ -67,11 +35,33 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
-import static net.lingala.zip4j.util.FileUtils.isNumberedSplitFile;
-import static net.lingala.zip4j.util.InternalZipConstants.CHARSET_UTF_8;
-import static net.lingala.zip4j.util.InternalZipConstants.MIN_BUFF_SIZE;
-import static net.lingala.zip4j.util.UnzipUtil.createZipInputStream;
-import static net.lingala.zip4j.util.Zip4jUtil.isStringNotNullAndNotEmpty;
+import net.lingala.zip4j.exception.ZipException;
+import net.lingala.zip4j.headers.HeaderReader;
+import net.lingala.zip4j.headers.HeaderUtil;
+import net.lingala.zip4j.headers.HeaderWriter;
+import net.lingala.zip4j.io.inputstream.NumberedSplitRandomAccessFile;
+import net.lingala.zip4j.io.inputstream.ZipInputStream;
+import net.lingala.zip4j.model.FileHeader;
+import net.lingala.zip4j.model.UnzipParameters;
+import net.lingala.zip4j.model.Zip4jConfig;
+import net.lingala.zip4j.model.ZipModel;
+import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.RandomAccessFileMode;
+import net.lingala.zip4j.progress.ProgressMonitor;
+import net.lingala.zip4j.tasks.*;
+import net.lingala.zip4j.tasks.AddFilesToZipTask.AddFilesToZipTaskParameters;
+import net.lingala.zip4j.tasks.AddFolderToZipTask.AddFolderToZipTaskParameters;
+import net.lingala.zip4j.tasks.AddStreamToZipTask.AddStreamToZipTaskParameters;
+import net.lingala.zip4j.tasks.ExtractAllFilesTask.ExtractAllFilesTaskParameters;
+import net.lingala.zip4j.tasks.ExtractFileTask.ExtractFileTaskParameters;
+import net.lingala.zip4j.tasks.MergeSplitZipFileTask.MergeSplitZipFileTaskParameters;
+import net.lingala.zip4j.tasks.RemoveFilesFromZipTask.RemoveFilesFromZipTaskParameters;
+import net.lingala.zip4j.tasks.RenameFilesTask.RenameFilesTaskParameters;
+import net.lingala.zip4j.tasks.SetCommentTask.SetCommentTaskTaskParameters;
+import net.lingala.zip4j.util.FileUtils;
+import net.lingala.zip4j.util.InternalZipConstants;
+import net.lingala.zip4j.util.RawIO;
+import net.lingala.zip4j.util.Zip4jUtil;
 
 /**
  * Base class to handle zip files. Some of the operations supported
@@ -87,18 +77,18 @@ import static net.lingala.zip4j.util.Zip4jUtil.isStringNotNullAndNotEmpty;
 
 public class ZipFile implements Closeable {
 
-  private File zipFile;
+  private final File zipFile;
   private ZipModel zipModel;
   private boolean isEncrypted;
-  private ProgressMonitor progressMonitor;
+  private final ProgressMonitor progressMonitor;
   private boolean runInThread;
   private char[] password;
-  private HeaderWriter headerWriter = new HeaderWriter();
+  private final HeaderWriter headerWriter = new HeaderWriter();
   private Charset charset = null;
   private ThreadFactory threadFactory;
   private ExecutorService executorService;
   private int bufferSize = InternalZipConstants.BUFF_SIZE;
-  private List<InputStream> openInputStreams = new ArrayList<>();
+  private final List<InputStream> openInputStreams = new ArrayList<>();
   private boolean useUtf8CharsetForPasswords = InternalZipConstants.USE_UTF8_FOR_PASSWORD_ENCODING_DECODING;
 
   /**
@@ -107,7 +97,7 @@ public class ZipFile implements Closeable {
    * to this ZipFile instance
    * @param zipFile
    */
-  public ZipFile(String zipFile) {
+  public ZipFile(final String zipFile) {
     this(new File(zipFile), null);
   }
 
@@ -118,7 +108,7 @@ public class ZipFile implements Closeable {
    * to this ZipFile instance
    * @param zipFile
    */
-  public ZipFile(String zipFile, char[] password) {
+  public ZipFile(final String zipFile, final char[] password) {
     this(new File(zipFile), password);
   }
 
@@ -129,7 +119,7 @@ public class ZipFile implements Closeable {
    * @param zipFile file reference to the zip file
    * @throws IllegalArgumentException when zip file parameter is null
    */
-  public ZipFile(File zipFile) {
+  public ZipFile(final File zipFile) {
     this(zipFile, null);
   }
 
@@ -141,7 +131,7 @@ public class ZipFile implements Closeable {
    * @param password password to use for the zip file
    * @throws IllegalArgumentException when zip file parameter is null
    */
-  public ZipFile(File zipFile, char[] password) {
+  public ZipFile(final File zipFile, final char[] password) {
     if (zipFile == null) {
       throw new IllegalArgumentException("input zip file parameter is null");
     }
@@ -166,8 +156,8 @@ public class ZipFile implements Closeable {
    * @param splitLength    - if archive has to be split, then length in bytes at which it has to be split
    * @throws ZipException  - if zip file already exists, or of split length is less than 65536
    */
-  public void createSplitZipFile(List<File> filesToAdd, ZipParameters parameters, boolean splitArchive,
-                            long splitLength) throws ZipException {
+  public void createSplitZipFile(final List<File> filesToAdd, final ZipParameters parameters, final boolean splitArchive,
+                            final long splitLength) throws ZipException {
 
     if (zipFile.exists()) {
       throw new ZipException("zip file: " + zipFile
@@ -196,8 +186,8 @@ public class ZipFile implements Closeable {
    * @param splitLength length in bytes at which the zip file has to be split
    * @throws ZipException if zip file already exists, or of split length is less than 65536
    */
-  public void createSplitZipFile(InputStream inputStream, ZipParameters parameters, boolean splitArchive,
-                                 long splitLength) throws ZipException {
+  public void createSplitZipFile(final InputStream inputStream, final ZipParameters parameters, final boolean splitArchive,
+                                 final long splitLength) throws ZipException {
 
     if (zipFile.exists()) {
       throw new ZipException("zip file: " + zipFile
@@ -230,8 +220,8 @@ public class ZipFile implements Closeable {
    * @param splitLength
    * @throws ZipException
    */
-  public void createSplitZipFileFromFolder(File folderToAdd, ZipParameters parameters, boolean splitArchive,
-                                      long splitLength) throws ZipException {
+  public void createSplitZipFileFromFolder(final File folderToAdd, final ZipParameters parameters, final boolean splitArchive,
+                                      final long splitLength) throws ZipException {
     if (folderToAdd == null) {
       throw new ZipException("folderToAdd is null, cannot create zip file from folder");
     }
@@ -262,7 +252,7 @@ public class ZipFile implements Closeable {
    * @param fileToAdd - File with path to be added to the zip file
    * @throws ZipException
    */
-  public void addFile(String fileToAdd) throws ZipException {
+  public void addFile(final String fileToAdd) throws ZipException {
     addFile(fileToAdd, new ZipParameters());
   }
 
@@ -274,7 +264,7 @@ public class ZipFile implements Closeable {
    * @param zipParameters - parameters for the entry to be added to zip
    * @throws ZipException
    */
-  public void addFile(String fileToAdd, ZipParameters zipParameters) throws ZipException {
+  public void addFile(final String fileToAdd, final ZipParameters zipParameters) throws ZipException {
     if (!isStringNotNullAndNotEmpty(fileToAdd)) {
       throw new ZipException("file to add is null or empty");
     }
@@ -289,7 +279,7 @@ public class ZipFile implements Closeable {
    * @param fileToAdd - File to be added to the zip file
    * @throws ZipException
    */
-  public void addFile(File fileToAdd) throws ZipException {
+  public void addFile(final File fileToAdd) throws ZipException {
     addFiles(Collections.singletonList(fileToAdd), new ZipParameters());
   }
 
@@ -302,7 +292,7 @@ public class ZipFile implements Closeable {
    * @param parameters - zip parameters for this file
    * @throws ZipException
    */
-  public void addFile(File fileToAdd, ZipParameters parameters) throws ZipException {
+  public void addFile(final File fileToAdd, final ZipParameters parameters) throws ZipException {
     addFiles(Collections.singletonList(fileToAdd), parameters);
   }
 
@@ -313,7 +303,7 @@ public class ZipFile implements Closeable {
    * @param filesToAdd
    * @throws ZipException
    */
-  public void addFiles(List<File> filesToAdd) throws ZipException {
+  public void addFiles(final List<File> filesToAdd) throws ZipException {
     addFiles(filesToAdd, new ZipParameters());
   }
 
@@ -326,7 +316,7 @@ public class ZipFile implements Closeable {
    * @param parameters
    * @throws ZipException
    */
-  public void addFiles(List<File> filesToAdd, ZipParameters parameters) throws ZipException {
+  public void addFiles(final List<File> filesToAdd, final ZipParameters parameters) throws ZipException {
 
     if (filesToAdd == null || filesToAdd.size() == 0) {
       throw new ZipException("input file List is null or empty");
@@ -358,7 +348,7 @@ public class ZipFile implements Closeable {
    * @param folderToAdd
    * @throws ZipException
    */
-  public void addFolder(File folderToAdd) throws ZipException {
+  public void addFolder(final File folderToAdd) throws ZipException {
     addFolder(folderToAdd, new ZipParameters());
   }
 
@@ -372,7 +362,7 @@ public class ZipFile implements Closeable {
    * @param zipParameters
    * @throws ZipException
    */
-  public void addFolder(File folderToAdd, ZipParameters zipParameters) throws ZipException {
+  public void addFolder(final File folderToAdd, final ZipParameters zipParameters) throws ZipException {
     if (folderToAdd == null) {
       throw new ZipException("input path is null, cannot add folder to zip file");
     }
@@ -404,7 +394,7 @@ public class ZipFile implements Closeable {
    * @param checkSplitArchive
    * @throws ZipException
    */
-  private void addFolder(File folderToAdd, ZipParameters zipParameters, boolean checkSplitArchive) throws ZipException {
+  private void addFolder(final File folderToAdd, final ZipParameters zipParameters, final boolean checkSplitArchive) throws ZipException {
 
     readZipInfo();
 
@@ -434,7 +424,7 @@ public class ZipFile implements Closeable {
    * @param parameters
    * @throws ZipException
    */
-  public void addStream(InputStream inputStream, ZipParameters parameters) throws ZipException {
+  public void addStream(final InputStream inputStream, final ZipParameters parameters) throws ZipException {
     if (inputStream == null) {
       throw new ZipException("inputstream is null, cannot add file to zip");
     }
@@ -467,7 +457,7 @@ public class ZipFile implements Closeable {
    * @param destinationPath path to which the entries of the zip are to be extracted
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractAll(String destinationPath) throws ZipException {
+  public void extractAll(final String destinationPath) throws ZipException {
     extractAll(destinationPath, new UnzipParameters());
   }
 
@@ -479,7 +469,7 @@ public class ZipFile implements Closeable {
    * @param unzipParameters parameters to be considered during extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractAll(String destinationPath, UnzipParameters unzipParameters) throws ZipException {
+  public void extractAll(final String destinationPath, final UnzipParameters unzipParameters) throws ZipException {
     if (!isStringNotNullAndNotEmpty(destinationPath)) {
       throw new ZipException("output path is null or invalid");
     }
@@ -511,7 +501,7 @@ public class ZipFile implements Closeable {
    * @param destinationPath path to which the entries of the zip are to be extracted
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(FileHeader fileHeader, String destinationPath) throws ZipException {
+  public void extractFile(final FileHeader fileHeader, final String destinationPath) throws ZipException {
     extractFile(fileHeader, destinationPath, null, new UnzipParameters());
   }
 
@@ -526,7 +516,7 @@ public class ZipFile implements Closeable {
    * @param unzipParameters any parameters that have to be considered during extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(FileHeader fileHeader, String destinationPath, UnzipParameters unzipParameters)
+  public void extractFile(final FileHeader fileHeader, final String destinationPath, final UnzipParameters unzipParameters)
       throws ZipException {
     extractFile(fileHeader, destinationPath, null, unzipParameters);
   }
@@ -541,7 +531,7 @@ public class ZipFile implements Closeable {
    * will be replaced with the newFileName
    * <br><br>
    * If fileHeader is a directory, this method extracts all files under this directory.
-   * <br/><br/>
+   * <br><br>
    * Any parameters that have to be considered during extraction can be passed in through unzipParameters
    *
    * @param fileHeader file header corresponding to the entry which has to be extracted
@@ -550,8 +540,8 @@ public class ZipFile implements Closeable {
    * @param unzipParameters any parameters that have to be considered during extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(FileHeader fileHeader, String destinationPath, String newFileName,
-                          UnzipParameters unzipParameters) throws ZipException {
+  public void extractFile(final FileHeader fileHeader, final String destinationPath, final String newFileName,
+                          final UnzipParameters unzipParameters) throws ZipException {
     if (fileHeader == null) {
       throw new ZipException("input file header is null, cannot extract file");
     }
@@ -577,7 +567,7 @@ public class ZipFile implements Closeable {
    * @param destinationPath path to which the entries of the zip are to be extracted
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(String fileName, String destinationPath) throws ZipException {
+  public void extractFile(final String fileName, final String destinationPath) throws ZipException {
     extractFile(fileName, destinationPath, null, new UnzipParameters());
   }
 
@@ -593,7 +583,7 @@ public class ZipFile implements Closeable {
    * If fileHeader is a directory, this method extracts all files under this directory.
    * <br><br>
    * Any parameters that have to be considered during extraction can be passed in through unzipParameters
-   * <br/><br/>
+   * <br><br>
    * Throws an exception of type {@link ZipException.Type#FILE_NOT_FOUND} if file header could not be found for the given file name.
    * Throws an exception if the destination path is invalid.
    *
@@ -602,7 +592,7 @@ public class ZipFile implements Closeable {
    * @param unzipParameters any parameters that have to be considered during extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(String fileName, String destinationPath, UnzipParameters unzipParameters)
+  public void extractFile(final String fileName, final String destinationPath, final UnzipParameters unzipParameters)
       throws ZipException {
     extractFile(fileName, destinationPath, null, unzipParameters);
   }
@@ -631,7 +621,7 @@ public class ZipFile implements Closeable {
    * @param newFileName if not null, this will be the name given to the file upon extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(String fileName, String destinationPath, String newFileName) throws ZipException {
+  public void extractFile(final String fileName, final String destinationPath, final String newFileName) throws ZipException {
     extractFile(fileName, destinationPath, newFileName, new UnzipParameters());
   }
 
@@ -651,28 +641,28 @@ public class ZipFile implements Closeable {
    * @param newFileName if not null, this will be the name given to the file upon extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(FileHeader fileHeader, String destinationPath, String newFileName) throws ZipException {
+  public void extractFile(final FileHeader fileHeader, final String destinationPath, final String newFileName) throws ZipException {
     extractFile(fileHeader, destinationPath, newFileName, new UnzipParameters());
   }
 
   /**
    * Extracts a specific file from the zip file to the destination path.
    * This method first finds the necessary file header from the input file name.
-   * <br/><br/>
+   * <br><br>
    * File name is relative file name in the zip file. For example if a zip file contains
    * a file "a.txt", then to extract this file, input file name has to be "a.txt". Another
    * example is if there is a file "b.txt" in a folder "abc" in the zip file, then the
    * input file name has to be abc/b.txt
-   * <br/><br/>
+   * <br><br>
    * If newFileName is not null or empty, newly created file name will be replaced by
    * the value in newFileName. If this value is null, then the file name will be the
    * value in FileHeader.getFileName. If file being extract is a directory, the directory name
    * will be replaced with the newFileName
-   * <br/><br/>
+   * <br><br>
    * If fileHeader is a directory, this method extracts all files under this directory.
-   * <br/><br/>
+   * <br><br>
    * Any parameters that have to be considered during extraction can be passed in through unzipParameters
-   * <br/><br/>
+   * <br><br>
    * Throws an exception of type {@link ZipException.Type#FILE_NOT_FOUND} if file header could not be found for the
    * given file name.
    * Throws an exception if the destination path is invalid.
@@ -683,7 +673,7 @@ public class ZipFile implements Closeable {
    * @param unzipParameters any parameters that have to be considered during extraction
    * @throws ZipException when an issue occurs during extraction
    */
-  public void extractFile(String fileName, String destinationPath, String newFileName, UnzipParameters unzipParameters)
+  public void extractFile(final String fileName, final String destinationPath, final String newFileName, UnzipParameters unzipParameters)
       throws ZipException {
 
     if (!isStringNotNullAndNotEmpty(fileName)) {
@@ -726,7 +716,7 @@ public class ZipFile implements Closeable {
    * @return FileHeader
    * @throws ZipException
    */
-  public FileHeader getFileHeader(String fileName) throws ZipException {
+  public FileHeader getFileHeader(final String fileName) throws ZipException {
     if (!isStringNotNullAndNotEmpty(fileName)) {
       throw new ZipException("input file name is emtpy or null, cannot get FileHeader");
     }
@@ -757,7 +747,7 @@ public class ZipFile implements Closeable {
       throw new ZipException("invalid zip file");
     }
 
-    for (FileHeader fileHeader : zipModel.getCentralDirectory().getFileHeaders()) {
+    for (final FileHeader fileHeader : zipModel.getCentralDirectory().getFileHeaders()) {
       if (fileHeader != null) {
         if (fileHeader.isEncrypted()) {
           isEncrypted = true;
@@ -799,7 +789,7 @@ public class ZipFile implements Closeable {
    * @param fileHeader
    * @throws ZipException
    */
-  public void removeFile(FileHeader fileHeader) throws ZipException {
+  public void removeFile(final FileHeader fileHeader) throws ZipException {
     if (fileHeader == null) {
       throw new ZipException("input file header is null, cannot remove file");
     }
@@ -822,7 +812,7 @@ public class ZipFile implements Closeable {
    * @param fileName
    * @throws ZipException
    */
-  public void removeFile(String fileName) throws ZipException {
+  public void removeFile(final String fileName) throws ZipException {
     if (!isStringNotNullAndNotEmpty(fileName)) {
       throw new ZipException("file name is empty or null, cannot remove file");
     }
@@ -842,7 +832,7 @@ public class ZipFile implements Closeable {
    * @param fileNames
    * @throws ZipException
    */
-  public void removeFiles(List<String> fileNames) throws ZipException {
+  public void removeFiles(final List<String> fileNames) throws ZipException {
     if (fileNames == null) {
       throw new ZipException("fileNames list is null");
     }
@@ -876,7 +866,7 @@ public class ZipFile implements Closeable {
    * @param newFileName the file name that has to be changed to
    * @throws ZipException if fileHeader is null or newFileName is null or empty or if the zip file is a split file
    */
-  public void renameFile(FileHeader fileHeader, String newFileName) throws ZipException {
+  public void renameFile(final FileHeader fileHeader, final String newFileName) throws ZipException {
     if (fileHeader == null) {
       throw new ZipException("File header is null");
     }
@@ -900,7 +890,7 @@ public class ZipFile implements Closeable {
    * @param newFileName the file name that has to be changed to
    * @throws ZipException if fileNameToRename is empty or newFileName is empty or if the zip file is a split file
    */
-  public void renameFile(String fileNameToRename, String newFileName) throws ZipException {
+  public void renameFile(final String fileNameToRename, final String newFileName) throws ZipException {
     if (!Zip4jUtil.isStringNotNullAndNotEmpty(fileNameToRename)) {
       throw new ZipException("file name to be changed is null or empty");
     }
@@ -925,7 +915,7 @@ public class ZipFile implements Closeable {
    * @param fileNamesMap map of file names that have to be changed with values in the map being the name to be changed to
    * @throws ZipException if map is null or if the zip file is a split file
    */
-  public void renameFiles(Map<String, String> fileNamesMap) throws ZipException {
+  public void renameFiles(final Map<String, String> fileNamesMap) throws ZipException {
     if (fileNamesMap == null) {
       throw new ZipException("fileNamesMap is null");
     }
@@ -940,7 +930,7 @@ public class ZipFile implements Closeable {
       throw new ZipException("Zip file format does not allow updating split/spanned files");
     }
 
-    AsyncZipTask.AsyncTaskParameters asyncTaskParameters = buildAsyncParameters();
+    final AsyncZipTask.AsyncTaskParameters asyncTaskParameters = buildAsyncParameters();
     new RenameFilesTask(zipModel, headerWriter, new RawIO(), asyncTaskParameters).execute(
         new RenameFilesTaskParameters(fileNamesMap, buildConfig()));
   }
@@ -952,7 +942,7 @@ public class ZipFile implements Closeable {
    * @param outputZipFile
    * @throws ZipException
    */
-  public void mergeSplitFiles(File outputZipFile) throws ZipException {
+  public void mergeSplitFiles(final File outputZipFile) throws ZipException {
     if (outputZipFile == null) {
       throw new ZipException("outputZipFile is null, cannot merge split files");
     }
@@ -977,7 +967,7 @@ public class ZipFile implements Closeable {
    * @param comment
    * @throws ZipException
    */
-  public void setComment(String comment) throws ZipException {
+  public void setComment(final String comment) throws ZipException {
     if (comment == null) {
       throw new ZipException("input comment is null, cannot update zip file");
     }
@@ -1033,7 +1023,7 @@ public class ZipFile implements Closeable {
    * @return ZipInputStream
    * @throws ZipException
    */
-  public ZipInputStream getInputStream(FileHeader fileHeader) throws IOException {
+  public ZipInputStream getInputStream(final FileHeader fileHeader) throws IOException {
     if (fileHeader == null) {
       throw new ZipException("FileHeader is null, cannot get InputStream");
     }
@@ -1044,7 +1034,7 @@ public class ZipFile implements Closeable {
       throw new ZipException("zip model is null, cannot get inputstream");
     }
 
-    ZipInputStream zipInputStream = createZipInputStream(zipModel, fileHeader, password);
+    final ZipInputStream zipInputStream = createZipInputStream(zipModel, fileHeader, password);
     openInputStreams.add(zipInputStream);
     return zipInputStream;
   }
@@ -1075,7 +1065,7 @@ public class ZipFile implements Closeable {
       }
 
       return true;
-    } catch (Exception e) {
+    } catch (final Exception e) {
       return false;
     }
   }
@@ -1101,7 +1091,7 @@ public class ZipFile implements Closeable {
    */
   @Override
   public void close() throws IOException {
-    for (InputStream inputStream : openInputStreams) {
+    for (final InputStream inputStream : openInputStreams) {
       inputStream.close();
     }
     openInputStreams.clear();
@@ -1111,7 +1101,7 @@ public class ZipFile implements Closeable {
    * Sets a password to be used for the zip file. Will override if a password supplied via ZipFile constructor
    * @param password - char array of the password to be used
    */
-  public void setPassword(char[] password) {
+  public void setPassword(final char[] password) {
     this.password = password;
   }
 
@@ -1131,7 +1121,7 @@ public class ZipFile implements Closeable {
    * @param bufferSize size of the buffer that should be used when reading streams
    * @throws IllegalArgumentException if bufferSize is less than value configured in InternalZipConstants.MIN_BUFF_SIZE
    */
-  public void setBufferSize(int bufferSize) {
+  public void setBufferSize(final int bufferSize) {
     if (bufferSize < MIN_BUFF_SIZE) {
       throw new IllegalArgumentException("Buffer size cannot be less than " + MIN_BUFF_SIZE + " bytes");
     }
@@ -1161,12 +1151,12 @@ public class ZipFile implements Closeable {
     }
 
     try (RandomAccessFile randomAccessFile = initializeRandomAccessFileForHeaderReading()) {
-      HeaderReader headerReader = new HeaderReader();
+      final HeaderReader headerReader = new HeaderReader();
       zipModel = headerReader.readAllHeaders(randomAccessFile, buildConfig());
       zipModel.setZipFile(zipFile);
-    } catch (ZipException e) {
+    } catch (final ZipException e) {
       throw e;
-    } catch (IOException e) {
+    } catch (final IOException e) {
       throw new ZipException(e);
     }
   }
@@ -1178,8 +1168,8 @@ public class ZipFile implements Closeable {
 
   private RandomAccessFile initializeRandomAccessFileForHeaderReading() throws IOException {
     if (isNumberedSplitFile(zipFile)) {
-      File[] allSplitFiles = FileUtils.getAllSortedNumberedSplitFiles(zipFile);
-      NumberedSplitRandomAccessFile numberedSplitRandomAccessFile =  new NumberedSplitRandomAccessFile(zipFile,
+      final File[] allSplitFiles = FileUtils.getAllSortedNumberedSplitFiles(zipFile);
+      final NumberedSplitRandomAccessFile numberedSplitRandomAccessFile =  new NumberedSplitRandomAccessFile(zipFile,
           RandomAccessFileMode.READ.getValue(), allSplitFiles);
       numberedSplitRandomAccessFile.openLastSplitFileForReading();
       return numberedSplitRandomAccessFile;
@@ -1199,8 +1189,8 @@ public class ZipFile implements Closeable {
     return new AsyncZipTask.AsyncTaskParameters(executorService, runInThread, progressMonitor);
   }
 
-  private boolean verifyAllSplitFilesOfZipExists(List<File> allSplitFiles) {
-    for (File splitFile : allSplitFiles) {
+  private boolean verifyAllSplitFilesOfZipExists(final List<File> allSplitFiles) {
+    for (final File splitFile : allSplitFiles) {
       if (!splitFile.exists()) {
         return false;
       }
@@ -1216,7 +1206,7 @@ public class ZipFile implements Closeable {
     return runInThread;
   }
 
-  public void setRunInThread(boolean runInThread) {
+  public void setRunInThread(final boolean runInThread) {
     this.runInThread = runInThread;
   }
 
@@ -1243,14 +1233,14 @@ public class ZipFile implements Closeable {
    * @param charset charset to use to encode file names and comments
    * @throws IllegalArgumentException if charset is null
    */
-  public void setCharset(Charset charset) throws IllegalArgumentException {
+  public void setCharset(final Charset charset) throws IllegalArgumentException {
     if(charset == null) {
       throw new IllegalArgumentException("charset cannot be null");
     }
     this.charset = charset;
   }
 
-  public void setThreadFactory(ThreadFactory threadFactory) {
+  public void setThreadFactory(final ThreadFactory threadFactory) {
     this.threadFactory = threadFactory;
   }
 
@@ -1271,7 +1261,7 @@ public class ZipFile implements Closeable {
     return useUtf8CharsetForPasswords;
   }
 
-  public void setUseUtf8CharsetForPasswords(boolean useUtf8CharsetForPasswords) {
+  public void setUseUtf8CharsetForPasswords(final boolean useUtf8CharsetForPasswords) {
     this.useUtf8CharsetForPasswords = useUtf8CharsetForPasswords;
   }
 }
